@@ -35,10 +35,10 @@ The S918B FZF5 profile is hardware-verified through the app's Shizuku mode (expl
 The Flip5 GZF1 profile is hardware-verified on the exact SM-F731B firmware
 from ADB shell through the complete exploit and KernelSU v3.2.5 late-load.
 SELinux returned to Enforcing, the trusted Manager opened the live LKM, and
-the initial `--allow-shell` load granted root to UID 2000. Because this
-no-patch-text build lacks the kernel `su_compat` hook, the target supplies a
-small grant-ioctl frontend through a tmpfs-backed `/system/bin` overlay;
-`adb shell su -c id` is hardware-verified. The P0 fallback and app-feed
+the initial `--allow-shell` load granted root to UID 2000. The current
+KernelSU pair includes hardware-verified SELinux hiding and kernel
+`su_compat` fixes, so `adb shell su -c id` works without a real `su` file or
+a `/system/bin` overlay. The P0 fallback and upstream app-feed
 integration are still pending. See
 [`docs/SM-F731B-F731BXXS7GZF1.md`](docs/SM-F731B-F731BXXS7GZF1.md).
 
