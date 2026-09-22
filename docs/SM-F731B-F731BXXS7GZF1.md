@@ -7,13 +7,13 @@ Galaxy Z Flip5 (international, `b5q`) on firmware `F731BXXS7GZF1`
 Status: **hardware verified from ADB shell** — the tracefs slide route, controlled
 reclaim, MCAST stack writer, fake fops, configfs read/write, pipe physical
 read/write, root UMH, KernelSU late-load, and trusted Manager connection all
-completed on the exact firmware. App-feed integration and the physical-P0
+completed on the exact firmware. Upstream app-feed integration and the physical-P0
 fallback remain open.
 
-The [published artifacts](../artifacts/b5q-F731BXXS7GZF1/README.md) include
-the exact app library and KernelSU pair validated on hardware. The rebuilt
-root helper and `su` frontend are byte-identical to the hardware-tested files.
-The artifact notes also record the source-build provenance.
+The [published artifacts](../artifacts/b5q-F731BXXS7GZF1/README.md) retain
+the exact hardware-validated app library and root helper. The current
+KernelSU pair includes the hardware-validated SELinux hiding and `su_compat`
+fixes described below; the earlier frontend and overlay are superseded.
 
 ## Kernel and platform
 
@@ -123,20 +123,21 @@ included in this repository.
 
 The exact KernelSU v3.2.5 module uses the full target release string and the
 Samsung KDP/RKP/DEFEX compatibility path. RKP syscall-table writes and live
-text patching are disabled. Its 200 undefined imports were audited against
-both the recovered target `vmlinux` and live `kallsyms`: zero names were
-missing, and there were zero CRC mismatches. Plain `insmod` is not supported;
+text patching are disabled. The original module's 200 imports were audited
+against the recovered target `vmlinux` and live `kallsyms`. The current
+[su compatibility revision](SM-F731B-sucompat.md), which includes the
+[SELinux hide fix](SM-F731B-selinux-hide.md), has 205 imports, all present
+in the recovered target, with zero CRC mismatches. Plain `insmod` is not supported;
 the matched `ksud` performs kallsyms-aware relocation and load.
 
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernelsu/android13-5.15.189_kernelsu-b5q-F731BXXS7GZF1-kdp.ko` | 377160 | `D652B6529EB8892B23BBD0BB34B20875CF3E49E4C32D32DF7038A7A10F694548` |
-| `kernelsu/ksud-b5q-F731BXXS7GZF1-kdp` | 4886944 | `A9086788D602539E09EC88194947E0E9591C3958172B1C746B45B61C2A715DB5` |
+| `kernelsu/android13-5.15.189_kernelsu-b5q-F731BXXS7GZF1-kdp.ko` | 381216 | `DD4A7D2CAD7D45B367A93C68C2B8FBB74F3D300D7DDCA1C276661115F27B8285` |
+| `kernelsu/ksud-b5q-F731BXXS7GZF1-kdp` | 4888048 | `0BA2BF39F163169319F0FE9CBB0236E572D99810D934587F8280A7E90EF5C521` |
 | Official KernelSU v3.2.5 Manager APK (not bundled) | 9083665 | `1417081413BF7AB1DE8E440ECBCB62685037C8F28F048F0F8B79E305B31AB916` |
 | `build/b5q-F731BXXS7GZF1/cve-2026-43499-root` (`--allow-shell` build) | 27072 | `6A397067C4AC3841DE01527D1F75219BAA5CA6C4A6BC4B52C4408474E2456C82` |
-| `build/b5q-F731BXXS7GZF1/ksu-su` | 7496 | `E28D19384C71E9A646740B22AC699A57D7CA828337C69B61421E4E9A5FFE26F3` |
 
-The hardware late-load left
+The original hardware late-load left
 `kernelsu 208896 1 - Live 0x0000000000000000 (OE)` in `/proc/modules` under
 Enforcing SELinux. The installed Manager is v3.2.5 (`versionCode=32525`); its
 v2 signing-certificate SHA-256 is
@@ -154,12 +155,12 @@ The captured exploit log is
 `build/b5q-F731BXXS7GZF1/device-allow-shell-full.log` (SHA-256
 `24CEF7F80FC4A483230C7C75CDFA34D1EC2563DD1CDC7DDAC1C66523278126DD`).
 
-This no-patch-text Samsung build does not expose KernelSU's kernel
-`su_compat` feature. The target therefore builds `src/ksu_su_frontend.c`,
-which obtains the KernelSU control fd, issues `KSU_IOCTL_GRANT_ROOT`, and then
-executes `/data/adb/ksud` with `argv[0] = "su"` so the normal KernelSU `su`
-argument parser remains in use. A tmpfs upper/work layer and overlay bind on
-`/system/bin` expose the frontend to fresh ADB shells. Hardware verification:
+The current no-patch-text Samsung build supports kernel `su_compat` through
+the existing syscall probes. Its initialization now resolves the syscall
+table read-only before returning at the RKP guard. Authorized callers can
+use the conventional `su` path without a real file or an overlay. The
+previous userspace `su` frontend overlay workaround is superseded and should
+not be restored. Hardware verification:
 
 ```sh
 adb shell su -c id
@@ -168,9 +169,11 @@ adb shell su -c id
 
 `command -v su` reports `/system/bin/su`; `su -v` reports
 `3.2.5:KernelSU`, `su -V` reports `32525`, and SELinux remains Enforcing.
-The overlay is intentionally per-boot, matching the late-loaded LKM. It was
-installed manually during validation; the root helper does not install this
-overlay automatically.
+The denied Native Root Detector UID receives `ENOENT` from lookup and
+execution of `/system/bin/su`. There is no `/system/bin` mount, and the
+SELinux hide regression probe still passes. The user confirmed Native Root
+Detector reports a normal environment. See the
+[validation notes](SM-F731B-sucompat.md) for the tests and evidence.
 
 Do not unload and reload the live module merely to change `allow_shell`: the
 device hung during that experiment and required a manual reboot. Select
@@ -184,5 +187,5 @@ official Manager may replace `/data/adb/ksud` with its stock daemon.
 ## Open items
 
 1. Device validation of `P0_KERNEL_PHYS_LOAD` (`0xa8000000` candidate)
-2. Root My Galaxy app packaging and support-feed entry in `targets-v3.json`
+2. Upstream Root My Galaxy app packaging and support-feed integration
 3. A persistent boot integration, if the bootloader is later unlocked
