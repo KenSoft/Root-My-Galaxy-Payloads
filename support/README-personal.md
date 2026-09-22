@@ -8,6 +8,11 @@ The catalog references the exact hardware-validated app library and matched
 KernelSU daemon in this fork. The personal Android app resolves this branch
 to a commit and downloads both artifacts from that same commit.
 
+The current daemon includes the hardware-validated SELinux hiding and
+`su_compat` fixes. The old userspace frontend and `/system/bin` overlay are
+superseded. Use a fresh boot when switching from that earlier deployment;
+the existing custom APK can fetch this updated pair without rebuilding.
+
 The app must bundle the matching root helper from
 `artifacts/b5q-F731BXXS7GZF1/cve-2026-43499-root` and honor
 `requiresFreshP0Session` so it does not substitute a cached physical address.
