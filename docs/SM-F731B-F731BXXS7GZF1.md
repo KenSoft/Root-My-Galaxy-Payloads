@@ -10,10 +10,10 @@ read/write, root UMH, KernelSU late-load, and trusted Manager connection all
 completed on the exact firmware. App-feed integration and the physical-P0
 fallback remain open.
 
-The [published artifacts](../artifacts/b5q-F731BXXS7GZF1/README.md) distinguish
-the recorded hardware validation from the fresh source build. The rebuilt
-app library has not been rerun on hardware; the root helper, `su` frontend,
-and KernelSU pair match the recorded hardware-tested files.
+The [published artifacts](../artifacts/b5q-F731BXXS7GZF1/README.md) include
+the exact app library and KernelSU pair validated on hardware. The rebuilt
+root helper and `su` frontend are byte-identical to the hardware-tested files.
+The artifact notes also record the source-build provenance.
 
 ## Kernel and platform
 
