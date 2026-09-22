@@ -3,6 +3,7 @@ TARGET ?= pa3q-S938NKSUACZF1
 OUTDIR ?= build/$(TARGET)
 
 APP_TARGET_CFLAGS :=
+ROOT_HELPER_CFLAGS :=
 ifeq ($(TARGET),dm2q-S916BXXSAFZG1)
 APP_TARGET_CFLAGS := -DSLIDE_STACK_WRITER=1
 endif
@@ -17,6 +18,10 @@ APP_TARGET_CFLAGS := -DSLIDE_STACK_WRITER=1
 endif
 ifeq ($(TARGET),gts9-X710XXS6EZF1)
 APP_TARGET_CFLAGS := -DSLIDE_STACK_WRITER=1
+endif
+ifeq ($(TARGET),b5q-F731BXXS7GZF1)
+APP_TARGET_CFLAGS := -DSLIDE_STACK_WRITER=1
+ROOT_HELPER_CFLAGS := -DKSU_LATE_LOAD_ALLOW_SHELL=1
 endif
 ifeq ($(TARGET),a53x-A536EXXSNGZG3)
 API := 31
@@ -41,6 +46,11 @@ APP_RELEASE := $(OUTDIR)/cve-2026-43499-app.release.so
 APP_STABLE := $(OUTDIR)/cve-2026-43499-app.stable.so
 APP_RELEASE_SIZE := 104128
 ROOT_HELPER := $(OUTDIR)/cve-2026-43499-root
+KSU_SU_FRONTEND := $(OUTDIR)/ksu-su
+TARGET_HELPERS :=
+ifeq ($(TARGET),b5q-F731BXXS7GZF1)
+TARGET_HELPERS := $(KSU_SU_FRONTEND)
+endif
 TARGET_CFLAGS :=
 APP_RELEASE_OPT := -Oz
 APP_RELEASE_LINK_FLAGS := -Wl,--gc-sections -Wl,--icf=all -s
@@ -84,7 +94,7 @@ COMMON_CFLAGS := \
 
 .PHONY: all clean info release stable
 
-all: $(PRELOAD) $(APP_PRELOAD) $(ROOT_HELPER)
+all: $(PRELOAD) $(APP_PRELOAD) $(ROOT_HELPER) $(TARGET_HELPERS)
 
 release: $(APP_RELEASE)
 
@@ -98,7 +108,10 @@ $(PRELOAD): $(PRELOAD_SRCS) $(TARGET_HEADER) src/offset.h src/common.h src/kerne
 	  -shared -pthread -o $@
 
 $(ROOT_HELPER): src/su_daemon.c | $(OUTDIR)
-	$(TARGET_CC) -fPIE -pie -O2 -g0 -Wall -Wextra $< -ldl -o $@
+	$(TARGET_CC) $(ROOT_HELPER_CFLAGS) -fPIE -pie -O2 -g0 -Wall -Wextra $< -ldl -o $@
+
+$(KSU_SU_FRONTEND): src/ksu_su_frontend.c | $(OUTDIR)
+	$(TARGET_CC) -fPIE -pie -Os -g0 -Wall -Wextra $< -o $@
 
 $(APP_PRELOAD): $(APP_PRELOAD_SRCS) $(TARGET_HEADER) src/offset.h src/common.h src/kernelsnitch/*.h | $(OUTDIR)
 	$(TARGET_CC) -DAPP_PAYLOAD=1 $(APP_TARGET_CFLAGS) -fPIC $(COMMON_CFLAGS) $(APP_PRELOAD_SRCS) \
@@ -138,6 +151,7 @@ info:
 	@echo "APP_RELEASE=$(APP_RELEASE)"
 	@echo "APP_STABLE=$(APP_STABLE)"
 	@echo "ROOT_HELPER=$(ROOT_HELPER)"
+	@echo "KSU_SU_FRONTEND=$(KSU_SU_FRONTEND)"
 
 clean:
 	rm -rf $(OUTDIR)
