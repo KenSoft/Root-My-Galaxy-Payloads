@@ -54,8 +54,8 @@ expanded 4K fingerprint table.
 - Validation covers ADB-shell execution on this exact firmware. Direct
   app-domain execution of the current library remains pending; the profile
   does not require Shizuku.
-- The physical-P0 fallback and its `0xa8000000` load-address candidate remain
-  unverified. The successful runs used tracefs.
+- The exact `0xa8000000` physical alias is confirmed by the latest P0 sample
+  at slide `0x178000`; end-to-end app-domain root handoff remains unverified.
 - Kernel `su_compat` supplies the conventional `su` path for authorized UIDs
   without a real `/system/bin/su` file or `/system/bin` overlay. Use a fresh
   boot when upgrading from the old overlay-based build and do not restore
