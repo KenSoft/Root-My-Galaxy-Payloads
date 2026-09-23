@@ -7,19 +7,22 @@ Galaxy Z Flip5 (international, `b5q`) on firmware `F731BXXS7GZF1`
 Status: **hardware verified from ADB shell** — the tracefs slide route, controlled
 reclaim, MCAST stack writer, fake fops, configfs read/write, pipe physical
 read/write, root UMH, KernelSU late-load, and trusted Manager connection all
-completed on the exact firmware. Upstream app-feed integration and the physical-P0
-fallback remain open.
+completed on the exact firmware. The KenSoft app feed now enables direct
+execution without Shizuku; its physical-P0 fallback has not completed root.
 
 The custom app was also exercised directly on this device on 2026-09-23.
 Its `untrusted_app` process received `EACCES` when opening tracefs, then used
 the physical-P0 fallback. Several runs advanced through the controlled memory
 scan; two produced a physical slide candidate, but neither completed root.
-One failed at the fake-fops verification and another reached pipe-physrw before
-the run ended. Other runs hit the app's old 15-minute deadline after reporting
-low collision counts. Those counts also appeared in early passes of the
-successful ADB shell run, so they do not alone identify a collision defect.
-The validated route still requires shell-level tracefs access, such as an ADB
-shell or an authorized Shizuku shell. Direct app-domain root remains unverified.
+One failed at fake-fops verification and another reached pipe-physrw before the
+run ended. Earlier runs hit the original 15-minute deadline after reporting
+low collision counts; the app's current limit is 45 minutes. Those counts also
+appeared in early passes of the successful ADB shell run, so they do not alone
+identify a collision defect.
+The KenSoft app feed now permits the direct app-domain path without requiring
+Shizuku. In that context tracefs remains unavailable and the payload relies on
+the physical-P0 fallback; end-to-end root from the app is still unverified.
+The ADB shell tracefs path above remains the fully validated route.
 
 The [published artifacts](../artifacts/b5q-F731BXXS7GZF1/README.md) retain
 the exact hardware-validated app library and root helper. The current
