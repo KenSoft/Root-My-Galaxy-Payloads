@@ -2824,6 +2824,13 @@ static int slide_commit_stext(uint64_t stext, const char *source) {
   slide_p0_offset = slide;
   kaslr_done = 1;
   data_addr_canonical = strcmp(source, "tracefs") == 0;
+#if defined(APP_REQUIRE_FRESH_P0_SESSION) && APP_REQUIRE_FRESH_P0_SESSION
+  /* A tracefs leak is also acquired in this process, so it satisfies the
+   * fresh-slide guard without reusing P0 state from a previous child. */
+  if (data_addr_canonical) {
+    slide_p0_session_fresh = 1;
+  }
+#endif
   if (data_addr_canonical) {
     app_publish_slide_ready();
   } else {

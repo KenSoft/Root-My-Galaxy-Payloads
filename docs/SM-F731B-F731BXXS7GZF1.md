@@ -7,25 +7,13 @@ Galaxy Z Flip5 (international, `b5q`) on firmware `F731BXXS7GZF1`
 Status: **hardware verified from ADB shell** — the tracefs slide route, controlled
 reclaim, MCAST stack writer, fake fops, configfs read/write, pipe physical
 read/write, root UMH, KernelSU late-load, and trusted Manager connection all
-completed on the exact firmware. The KenSoft app feed now enables direct
-execution without Shizuku; its physical-P0 fallback has not completed root.
-
-The custom app was also exercised directly on this device on 2026-09-23.
-Its `untrusted_app` process received `EACCES` when opening tracefs, then used
-the physical-P0 fallback. Several runs advanced through the controlled memory
-scan; two produced a physical slide candidate, but neither completed root.
-One failed at fake-fops verification and another reached pipe-physrw before the
-run ended. Earlier runs hit the original 15-minute deadline after reporting
-low collision counts; the app's current limit is 45 minutes. Those counts also
-appeared in early passes of the successful ADB shell run, so they do not alone
-identify a collision defect.
-The KenSoft app feed now permits the direct app-domain path without requiring
-Shizuku. In that context tracefs remains unavailable and the payload relies on
-the physical-P0 fallback; end-to-end root from the app is still unverified.
-The ADB shell tracefs path above remains the fully validated route.
+completed on the exact firmware. The current personal feed uses a fresh-P0
+build for direct app execution without Shizuku; that binary has not completed
+an end-to-end device run.
 
 The [published artifacts](../artifacts/b5q-F731BXXS7GZF1/README.md) retain
-the exact hardware-validated app library and root helper. The current
+the hardware-validated root helper and the current unverified fresh-P0 app
+library. The current
 KernelSU pair includes the hardware-validated SELinux hiding and `su_compat`
 fixes described below; the earlier frontend and overlay are superseded.
 
@@ -89,29 +77,28 @@ The sampled `.text` routines match; the `.data` symbol offsets differ as below:
 | INIT_TASK | 0x2c05080 | 0x2c05080 | 0 |
 | SELINUX_ENFORCING | 0x2d8e5c0 | 0x2d8e5c0 | 0 |
 
-## P0 candidate address
+## P0 physical address
 
-`P0_KERNEL_PHYS_LOAD = 0xa8000000` — **CANDIDATE, not device-confirmed**.
-
-Reasoning: the ABL constant tables are byte-identical between this platform
-and the S25, both have DDR at 0x80000000, and 0xa8000000 is the value the
-ABL chose on the S25. The P0 fingerprint is a clean pass/fail oracle: a
-wrong base aliases a page that is not kernel image, the score stays low,
-and `scan_p0_pipe_oracle` fails into the restore path.
+`P0_KERNEL_PHYS_LOAD = 0xa8000000` is confirmed by the failed app-domain
+run's physical-P0 sample. The eight logged qwords match the exact local raw
+`kernel` image at slide `0x178000` with score 8/8 and runner-up 0. This also
+confirms the physical alias tracks the slide recovered by the earlier tracefs
+diagnostic on this firmware.
 
 ## P0 fingerprint
 
-32 candidates at 0x10000 step. The hardware run observed a VA slide of
-`0x108000` through tracefs. That value is not 64K-aligned, so it does not by
-itself validate the physical-placement model; the P0 oracle remains the
-required test. The candidate table still covers the full `[0, 0x1F0000]`
-range at 0x10000 steps.
+497 candidates at 0x1000 step, generated from the exact `kernel` image at
+`P0_ORACLE_PROBE_OFFSET = 0x1b5e000`. The failed app run's sample scores 0/8
+in the old 64K table and 8/8 at `0x178000` in this table, with runner-up 0.
+The table also includes tracefs-observed slides `0x108000` and `0x1d0000`.
+Some other image pages repeat; the scanner rejects those tied fingerprints.
+The physical page mapping is now confirmed, while the app's post-slide root
+handoff still needs an end-to-end device run.
 
 ## Build
 
 ```sh
 make TARGET=b5q-F731BXXS7GZF1 ANDROID_NDK_HOME=/path/to/android-ndk
-make TARGET=b5q-F731BXXS7GZF1 ANDROID_NDK_HOME=/path/to/android-ndk release
 ```
 
 ## Hardware validation
