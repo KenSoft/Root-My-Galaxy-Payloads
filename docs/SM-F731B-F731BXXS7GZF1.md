@@ -99,7 +99,6 @@ handoff still needs an end-to-end device run.
 
 ```sh
 make TARGET=b5q-F731BXXS7GZF1 ANDROID_NDK_HOME=/path/to/android-ndk
-make TARGET=b5q-F731BXXS7GZF1 ANDROID_NDK_HOME=/path/to/android-ndk release
 ```
 
 ## Hardware validation

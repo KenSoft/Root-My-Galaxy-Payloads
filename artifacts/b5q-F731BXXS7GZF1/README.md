@@ -39,14 +39,15 @@ pending an end-to-end device run.
 ## Build
 
 ```sh
-make TARGET=b5q-F731BXXS7GZF1 ANDROID_NDK_HOME=/path/to/android-ndk-r29 all release
+make TARGET=b5q-F731BXXS7GZF1 ANDROID_NDK_HOME=/path/to/android-ndk-r29 all
 ```
 
 `all` builds the standalone and app payloads, the root helper with
 `--allow-shell` selected for the initial late-load.
-`release` builds the size-limited app library separately. The published app
-library is the regular build with fresh-P0 enforcement and the expanded 4K
-fingerprint table.
+The shared Makefile's fixed-size `release` target is still capped at 104128
+bytes, which is too small for this target's expanded fingerprint table. The
+published app library is the regular build with fresh-P0 enforcement and the
+expanded 4K fingerprint table.
 
 ## Integration status
 
