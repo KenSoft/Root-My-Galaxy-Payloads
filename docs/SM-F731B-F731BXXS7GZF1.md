@@ -7,11 +7,13 @@ Galaxy Z Flip5 (international, `b5q`) on firmware `F731BXXS7GZF1`
 Status: **hardware verified from ADB shell** — the tracefs slide route, controlled
 reclaim, MCAST stack writer, fake fops, configfs read/write, pipe physical
 read/write, root UMH, KernelSU late-load, and trusted Manager connection all
-completed on the exact firmware. Upstream app-feed integration and the physical-P0
-fallback remain open.
+completed on the exact firmware. The current personal feed uses a fresh-P0
+build for direct app execution without Shizuku; that binary has not completed
+an end-to-end device run.
 
 The [published artifacts](../artifacts/b5q-F731BXXS7GZF1/README.md) retain
-the exact hardware-validated app library and root helper. The current
+the hardware-validated root helper and the current unverified fresh-P0 app
+library. The current
 KernelSU pair includes the hardware-validated SELinux hiding and `su_compat`
 fixes described below; the earlier frontend and overlay are superseded.
 

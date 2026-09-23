@@ -3,22 +3,24 @@
 Exact firmware: `F731BXXS7GZF1`, kernel
 `5.15.189-android13-8-33404244-abF731BXXS7GZF1` (`android13-5.15`).
 
-The recorded hardware runs on 2026-09-22 and 2026-09-23 completed the tracefs
-route from ADB shell, root bootstrap, and KernelSU v3.2.5 late-load. UID 2000
-received root with SELinux Enforcing and the official Manager connected.
-See the [validation record](../../docs/SM-F731B-F731BXXS7GZF1.md).
+The ADB-shell tracefs route, root bootstrap, and KernelSU v3.2.5 late-load were
+hardware-validated on 2026-09-22 and 2026-09-23. The current app library is a
+fresh-P0 build intended to run directly without Shizuku; this rebuilt binary
+has only been compiled and has not completed a device run. UID 2000 received
+root on the validated ADB-shell path with SELinux Enforcing and the official
+Manager connected. See the [validation record](../../docs/SM-F731B-F731BXXS7GZF1.md).
 
 ## Files and provenance
 
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `cve-2026-43499-app.so` | 133760 | `651f630844905b7969c445366926404ac4fbee86c550d17d69ce01000f00cba0` |
+| `cve-2026-43499-app.so` | 136680 | `7bdcbe80e51357e838cd31751f7ecd560966d1f0fbf44ea8a89eb986aa16c610` |
 | `cve-2026-43499-root` | 27072 | `6a397067c4ac3841de01527d1f75219baa5ca6c4a6bc4b52c4408474e2456c82` |
 | `../../kernelsu/ksud-b5q-F731BXXS7GZF1-kdp` | 4888048 | `0ba2bf39f163169319f0fe9cbb0236e572d99810d934587f8280a7e90ef5c521` |
 | `../../kernelsu/android13-5.15.189_kernelsu-b5q-F731BXXS7GZF1-kdp.ko` | 381216 | `dd4a7d2cad7d45b367a93c68c2b8fbb74f3d300d7ddca1c276661115f27b8285` |
 
-The published app payload library is the exact binary validated successfully
-on SM-F731B hardware. The root helper was rebuilt with Android NDK r29,
+The published app payload library enables `APP_REQUIRE_FRESH_P0_SESSION`,
+matching the personal feed's fresh-session profile. The root helper was rebuilt with Android NDK r29,
 API 35, and is byte-identical to the hardware-tested file. The KernelSU pair
 is the newer hardware-validated revision with both
 [SELinux hiding](../../docs/SM-F731B-selinux-hide.md) and
@@ -28,10 +30,10 @@ userspace frontend and overlay workaround.
 Selected [validation outputs](validation/) record the final module's
 firmware audit, authorized/denied `su` behavior, and SELinux hiding regression.
 
-The validated library was built in the development checkout, which also
-contained local diagnostic probes. This PR retains upstream shared sources
-without those probes. Fresh `all` and `release` builds pass, but the rebuilt
-library is not byte-identical to the published hardware-validated artifact.
+The previous app library completed the ADB-shell flow but did not complete
+the direct app-domain physical-P0 route. The current library was built from
+the clean personal source tree with the fresh-session path enabled; it is a
+Shizuku-free experiment pending on-device validation.
 
 ## Build
 
@@ -48,7 +50,8 @@ checkout, as described above.
 ## Integration status
 
 - Validation covers ADB-shell execution on this exact firmware. Direct
-  app-domain execution and upstream support-feed integration remain pending.
+  app-domain execution of the current library remains pending; the profile
+  does not require Shizuku.
 - The physical-P0 fallback and its `0xa8000000` load-address candidate remain
   unverified. The successful runs used tracefs.
 - Kernel `su_compat` supplies the conventional `su` path for authorized UIDs
