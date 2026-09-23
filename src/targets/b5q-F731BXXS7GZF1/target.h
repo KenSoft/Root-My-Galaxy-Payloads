@@ -66,7 +66,11 @@
 #define COMPACT_RT_MUTEX_WAITER 1
 
 /*
- * TODO(BLOCKER): P0_KERNEL_PHYS_LOAD is NOT yet determined for this device.
+ * P0_KERNEL_PHYS_LOAD was initially a candidate inferred from the ABL. The
+ * app-domain P0 sample in files/exploit.log matched the exact raw kernel
+ * Image at slide 0x178000 (all eight words, unique in the 4K candidate table),
+ * confirming this physical alias on the device. The earlier zero-score result
+ * came from the old 64K table, which omitted that slide.
  *
  * The ABL constant table is byte-identical to the S25 bootloaders
  *   0x20000000 0x00000000 0x00080000 0x05600000 0x03c00000 0x00008000
@@ -85,35 +89,21 @@
  * so "start of the first large window" is not a reliable rule, and there is
  * no device-tested sibling for this platform to corroborate against.
  *
- * A wrong value makes the probe slot alias a page that is not kernel image.
- * The failure is at least self-announcing: the P0 fingerprint will not match
- * (best score stays low) and scan_p0_pipe_oracle fails into the restore path
- * without ever reaching the fops stage.
- *
- * CANDIDATE UNDER TEST: 0xa8000000. Reasoning, not proof -- the ABL constant
- * tables are byte-identical between this platform and the S25, both devices
- * have DDR at 0x80000000, 0xa8000000 is free in this device's map, and it is
- * the value the ABL chose on the S25. The P0 fingerprint is a clean pass/fail
- * oracle for it: a wrong base aliases a page that is not kernel image, the
- * score stays low, and scan_p0_pipe_oracle fails into the restore path.
+ * The earlier candidate analysis is retained above for provenance; this
+ * address is now confirmed by the device fingerprint evidence.
  */
 #define P0_PHYS_OFFSET 0x80000000ULL
-#define P0_KERNEL_PHYS_LOAD 0xa8000000ULL /* CANDIDATE -- not yet confirmed */
+#define P0_KERNEL_PHYS_LOAD 0xa8000000ULL /* confirmed by app-domain P0 sample */
 
 /*
- * SLIDE_VA_KASLR_INDEPENDENT deliberately NOT set.
- *
  * Tracefs observed slides of 0x1d0000 and 0x108000 on different boots.
- * The latter is not 64K-aligned, so these measurements do not establish
- * that the VA slide tracks physical placement. Only the tracefs route is
- * hardware-verified; the physical P0 model remains an open item.
+ * The physical P0 fingerprint table covers every 4K slide from 0 through
+ * 0x1f0000 using this exact kernel Image and P0_ORACLE_PROBE_OFFSET. This
+ * includes both observations. The latest failed app run's eight-word P0
+ * sample matches slide 0x178000 at 8/8 (runner-up 0); the previous 64K table
+ * scored it 0/8. Repeated image pages tie and are rejected by the oracle.
  *
- * The VA probe must not be enabled here in any case: the oracle aliases a
- * fixed physical page, so the image page it exposes is
- * (P0_ORACLE_PROBE_OFFSET - slide), not P0_ORACLE_PROBE_OFFSET. It is only
- * usable when the physical slide is zero, and no PROBE_OFFSET exists that
- * satisfies all 32 candidate slides. The P0_ORACLE_PROBE_OFFSET /
- * SLIDE_VA_PROBE_* values below are retained for reference but inert.
+ * The separate SLIDE_VA_PROBE_* values are legacy and remain disabled.
  */
 
 /* TODO(verify): constant across all seven existing targets and both SoC
@@ -474,11 +464,10 @@
 #define P0_ORACLE_GATE_OBJECT_INDEX 1
 
 /*
- * Probe page doubles as the VA-base leak source. Image page 0x01b5e000 has
- * all eight fingerprint sample offsets static with zero collisions against
- * the other 31 candidate slides, and holds crypto_buildtime_address at page
- * offset 0x760 -- a build-time reference to _text that the kernel relocates
- * at boot and never writes. It points at image offset 0, so:
+ * Probe page doubles as the VA-base leak source. Image page 0x01b5e000 holds
+ * crypto_buildtime_address at page offset 0x760 -- a build-time reference to
+ * _text that the kernel relocates at boot and never writes. It points at
+ * image offset 0, so:
  *
  *   stext = runtime_qword_at(0x760)
  *

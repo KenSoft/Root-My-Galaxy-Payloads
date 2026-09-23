@@ -77,23 +77,23 @@ The sampled `.text` routines match; the `.data` symbol offsets differ as below:
 | INIT_TASK | 0x2c05080 | 0x2c05080 | 0 |
 | SELINUX_ENFORCING | 0x2d8e5c0 | 0x2d8e5c0 | 0 |
 
-## P0 candidate address
+## P0 physical address
 
-`P0_KERNEL_PHYS_LOAD = 0xa8000000` — **CANDIDATE, not device-confirmed**.
-
-Reasoning: the ABL constant tables are byte-identical between this platform
-and the S25, both have DDR at 0x80000000, and 0xa8000000 is the value the
-ABL chose on the S25. The P0 fingerprint is a clean pass/fail oracle: a
-wrong base aliases a page that is not kernel image, the score stays low,
-and `scan_p0_pipe_oracle` fails into the restore path.
+`P0_KERNEL_PHYS_LOAD = 0xa8000000` is confirmed by the failed app-domain
+run's physical-P0 sample. The eight logged qwords match the exact local raw
+`kernel` image at slide `0x178000` with score 8/8 and runner-up 0. This also
+confirms the physical alias tracks the slide recovered by the earlier tracefs
+diagnostic on this firmware.
 
 ## P0 fingerprint
 
-32 candidates at 0x10000 step. The hardware run observed a VA slide of
-`0x108000` through tracefs. That value is not 64K-aligned, so it does not by
-itself validate the physical-placement model; the P0 oracle remains the
-required test. The candidate table still covers the full `[0, 0x1F0000]`
-range at 0x10000 steps.
+497 candidates at 0x1000 step, generated from the exact `kernel` image at
+`P0_ORACLE_PROBE_OFFSET = 0x1b5e000`. The failed app run's sample scores 0/8
+in the old 64K table and 8/8 at `0x178000` in this table, with runner-up 0.
+The table also includes tracefs-observed slides `0x108000` and `0x1d0000`.
+Some other image pages repeat; the scanner rejects those tied fingerprints.
+The physical page mapping is now confirmed, while the app's post-slide root
+handoff still needs an end-to-end device run.
 
 ## Build
 
