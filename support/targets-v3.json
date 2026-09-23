@@ -7,6 +7,7 @@
       "models": ["SM-F731B"],
       "kernelVersions": ["5.15.189"],
       "requiresFreshP0Session": true,
+      "requiresShellContext": true,
       "exploit": {
         "url": "https://raw.githubusercontent.com/KenSoft/Root-My-Galaxy-Payloads/personal/sm-f731b/artifacts/b5q-F731BXXS7GZF1/cve-2026-43499-app.so",
         "size": 133760
