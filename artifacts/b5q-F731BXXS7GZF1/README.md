@@ -14,7 +14,7 @@ the [validation record](../../docs/SM-F731B-F731BXXS7GZF1.md).
 
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `cve-2026-43499-app.so` | 170152 | `2f5b32e80ce4ab7208a937183ce80034e8d042bc1345498e8b13e6da00d346e6` |
+| `cve-2026-43499-app.so` | 170152 | `886c1f4134f2bb9688cc879beb3fa0683a068adc0b1f741fae5fd5fbdb9a47be` |
 | `cve-2026-43499-root` | 27072 | `6a397067c4ac3841de01527d1f75219baa5ca6c4a6bc4b52c4408474e2456c82` |
 | `../../kernelsu/ksud-b5q-F731BXXS7GZF1-kdp` | 4888048 | `0ba2bf39f163169319f0fe9cbb0236e572d99810d934587f8280a7e90ef5c521` |
 | `../../kernelsu/android13-5.15.189_kernelsu-b5q-F731BXXS7GZF1-kdp.ko` | 381216 | `dd4a7d2cad7d45b367a93c68c2b8fbb74f3d300d7ddca1c276661115f27b8285` |
