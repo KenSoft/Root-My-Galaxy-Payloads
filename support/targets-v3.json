@@ -9,7 +9,7 @@
       "requiresFreshP0Session": true,
       "exploit": {
         "url": "https://raw.githubusercontent.com/KenSoft/Root-My-Galaxy-Payloads/personal/sm-f731b/artifacts/b5q-F731BXXS7GZF1/cve-2026-43499-app.so",
-        "size": 170152
+        "size": 170136
       },
       "kernelsu": {
         "url": "https://raw.githubusercontent.com/KenSoft/Root-My-Galaxy-Payloads/personal/sm-f731b/kernelsu/ksud-b5q-F731BXXS7GZF1-kdp",

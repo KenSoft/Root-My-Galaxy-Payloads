@@ -95,6 +95,25 @@ Some other image pages repeat; the scanner rejects those tied fingerprints.
 The physical page mapping is now confirmed, while the app's post-slide root
 handoff still needs an end-to-end device run.
 
+## Shizuku-free app run audit
+
+The 2026-09-23 app run used the physical-P0 fallback because the app UID could
+not open tracefs (`EACCES`). It completed P0 discovery, then accumulated all 32
+controlled-mm entries for the FOPS page after 85 attempts. The repeated
+"only found 0–3 collisions" lines describe individual misses; they do not
+report the accumulated group count. The run stopped in the FOPS PI handoff and
+the phone rebooted before the app could record a final result.
+
+The source audit found that `APP_CLOSED_FOPS_ROUTE` prepared the fake lock,
+task, parent, and target for `PAGE_PAYLOAD_FOPS`, but the fresh-P0 trigger
+selected slot 0 from the slide bank left by `PAGE_PAYLOAD_SLIDE`. That
+overwrote the new FOPS route with stale page state. The app trigger now keeps
+the FOPS page's prepared state on the closed route. The reboot's exact kernel
+cause remains unknown: Android reported only the generic `reboot` reason, and
+the available ADB shell could not read a preserved kernel crash record. This
+revision has compiled, but its app-domain root handoff still needs a hardware
+retest.
+
 ## Build
 
 ```sh
