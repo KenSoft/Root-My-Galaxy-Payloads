@@ -10,6 +10,17 @@ read/write, root UMH, KernelSU late-load, and trusted Manager connection all
 completed on the exact firmware. Upstream app-feed integration and the physical-P0
 fallback remain open.
 
+The custom app was also exercised directly on this device on 2026-09-23.
+Its `untrusted_app` process received `EACCES` when opening tracefs, then used
+the physical-P0 fallback. Several runs advanced through the controlled memory
+scan; two produced a physical slide candidate, but neither completed root.
+One failed at the fake-fops verification and another reached pipe-physrw before
+the run ended. Other runs hit the app's old 15-minute deadline after reporting
+low collision counts. Those counts also appeared in early passes of the
+successful ADB shell run, so they do not alone identify a collision defect.
+The validated route still requires shell-level tracefs access, such as an ADB
+shell or an authorized Shizuku shell. Direct app-domain root remains unverified.
+
 The [published artifacts](../artifacts/b5q-F731BXXS7GZF1/README.md) retain
 the exact hardware-validated app library and root helper. The current
 KernelSU pair includes the hardware-validated SELinux hiding and `su_compat`
