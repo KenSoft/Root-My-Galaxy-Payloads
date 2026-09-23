@@ -2255,9 +2255,17 @@ static int app_trigger_fops_slide_slot(size_t slot) {
     70000, 60000, 80000, 40000, 90000, 50000,
     30000, 20000, 75000, 65000, 85000, 55000,
   };
+#if defined(APP_CLOSED_FOPS_ROUTE) && APP_CLOSED_FOPS_ROUTE
+  /* The closed FOPS route uses the fields prepared for PAGE_PAYLOAD_FOPS.
+   * The slide bank still belongs to the earlier PAGE_PAYLOAD_SLIDE page. */
+  if (slot != 0) {
+    return 0;
+  }
+#else
   if (!select_slide_payload_index(slot)) {
     return 0;
   }
+#endif
   int delay = 0;
 #if defined(APP_S928_STABLE_RACE) && APP_S928_STABLE_RACE
   int forced_delay = slide_s928_fops_delay_override(&delay);
