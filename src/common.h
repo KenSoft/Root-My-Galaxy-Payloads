@@ -336,6 +336,7 @@ extern int data_alias_uses_slide;
 extern int data_addr_canonical;
 extern int app_fops_reused_page_ready;
 extern int slide_p0_session_fresh;
+extern int p0_prepare_only_active;
 extern int memfd_leak;
 
 int run_exploit(int argc, char **argv);
@@ -426,6 +427,8 @@ int app_trigger_fops_oracle_slot(size_t slot);
 ssize_t configfs_write_once(
     int fd, uintptr_t target, const void *data, size_t len);
 ssize_t configfs_read_once(int fd, uintptr_t target, void *data, size_t len);
+ssize_t configfs_read_object_once(
+    int fd, uintptr_t target, void *data, size_t len, size_t object_size);
 int is_direct_ptr(uintptr_t value);
 uint64_t kernel_read64(int fd, uintptr_t target);
 ssize_t kernel_write_data(

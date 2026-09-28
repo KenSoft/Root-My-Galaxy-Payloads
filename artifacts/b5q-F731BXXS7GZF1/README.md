@@ -42,12 +42,19 @@ RWC157 proved that unsafe. The third search is reached only on the two-miss
 tail and recently costs roughly 2--3 additional minutes.
 Compact P0-page reuse remains compiled behind `RMG_P0_PAGE_REUSE=1`, but is
 disabled by default and no enabled reuse binary is published in the feed.
+RWC159 identified a separate deterministic crash in the final pipe scan:
+`configfs_read_iter` validated a forged `0xe665`-byte source window before the
+user iov truncated the requested read to `0x400`, tripping hardened usercopy
+on a `kmalloc-2k` object. Pipe-object reads now cap that internal window at the
+remaining bytes in the 2K object. An address with no safe encoding returns
+`EOVERFLOW` before `ioctl`/`pread`, so the existing pre-forge retry discards
+that pipe page and prepares a fresh one instead of panicking.
 
 ## Files and provenance
 
 | File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `cve-2026-43499-app.so` | 182512 | `f9db4bbdf121c30eba0cd0abf58955b2b9f022cbd9983c77bb8a1d10a88edba8` |
+| `cve-2026-43499-app.so` | 186136 | `9eee8d0948973d9497d4e501e432d7ca3b4350e0aef9af326be0ef538a83ce22` |
 | `cve-2026-43499-app-p0-reliable.so` | 171680 | `3c4e6fbfe68baac56b4994963f7492963554a51c51433d504e774aec04c854d8` |
 | `cve-2026-43499-app-baseline.so` | 170136 | `508af8ecdf09e33f06a9b532c6e3a9f187d3053ac5eb9cc5ef63eee17a0fe8fa` |
 | `cve-2026-43499-root` | 27072 | `6a397067c4ac3841de01527d1f75219baa5ca6c4a6bc4b52c4408474e2456c82` |

