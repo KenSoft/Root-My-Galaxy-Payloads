@@ -8,7 +8,7 @@ The catalog references a fresh-P0 app-library build and the matched
 KernelSU daemon in this fork. The app library is intended for direct app
 execution without Shizuku. Direct app-domain root and KernelSU late-load have
 completed end to end on the exact firmware; the route remains probabilistic,
-and the current readback-gated gate2/handoff candidate needs device runs.
+and the current keeper-handoff correction still needs repeated runs.
 The personal Android app resolves this branch to a commit and downloads both
 artifacts from that same commit.
 
